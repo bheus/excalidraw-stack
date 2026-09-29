@@ -7,6 +7,23 @@ Portainer Git stack for [Excalidraw](https://github.com/excalidraw/excalidraw) o
 - **TLS:** Caddy's internal CA — the same root already trusted for `invoiceninja.svc.lan`.
   Other clients need it installed; see the `bheus/caddy-stack` README.
 
+## Image and updates
+
+Upstream's Docker Hub image stopped publishing on 2026-05-06, so this repo builds its own.
+`excalidraw/` is a submodule tracking upstream's `release` branch; CI builds it with
+upstream's Dockerfile on a native arm64 runner, pushes `ghcr.io/bheus/excalidraw:latest`
+(plus a tag per upstream commit), then POSTs the Portainer webhook
+(`PORTAINER_EXCALIDRAW_WEBHOOK` secret, public `deploy.builtbybrendan.com` URL).
+
+Updating is merging Dependabot's weekly submodule PR, or by hand:
+
+```bash
+git submodule update --remote excalidraw && git commit -am "Bump excalidraw" && git push
+```
+
+The stack is **webhook-only** (no polling) so Portainer never redeploys before the new
+image exists. Rollback: redeploy with `image: ghcr.io/bheus/excalidraw:<older upstream sha>`.
+
 ## Where drawings live
 
 Nowhere on the server. The image is a static nginx site; scenes are kept in the

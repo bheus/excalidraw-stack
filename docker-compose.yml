@@ -1,8 +1,7 @@
 services:
   excalidraw:
-    # Upstream publishes only :latest for arm64 (versioned sha-* tags are amd64
-    # and years old), so pin the digest. Dependabot bumps it.
-    image: excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9
+    # Built by .github/workflows/ci-release.yml from the pinned submodule.
+    image: ghcr.io/bheus/excalidraw:latest
     container_name: excalidraw
     restart: unless-stopped
     networks:

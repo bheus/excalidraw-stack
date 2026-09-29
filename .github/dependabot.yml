@@ -1,7 +1,12 @@
 version: 2
 updates:
-  - package-ecosystem: "docker-compose"
+  # Follows the `branch = release` in .gitmodules; merging the PR rebuilds and redeploys.
+  - package-ecosystem: "gitsubmodule"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "sunday"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

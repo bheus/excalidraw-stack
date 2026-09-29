@@ -1,0 +1,72 @@
+name: CI and release
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and publish
+    # Native arm64 so the Vite build is not emulated for the Raspberry Pi target.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.0
+        with:
+          submodules: true
+
+      # Portainer deploys this compose file alone, with no .env and no override,
+      # so every variable must interpolate from the default written here.
+      - name: Validate deployment compose
+        run: docker compose -f docker-compose.yml --env-file /dev/null config --quiet
+
+      - name: Resolve upstream commit
+        id: upstream
+        run: echo "sha=$(git -C excalidraw rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upstream's own Dockerfile; their Docker Hub publish has failed since
+      # 2026-05-06, which is why this repo builds the image at all.
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: excalidraw
+          platforms: linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/bheus/excalidraw:${{ steps.upstream.outputs.sha }}
+            ghcr.io/bheus/excalidraw:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.upstream.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The stack consumes the :latest tag, so the redeploy is triggered only
+      # after the push above has published it.
+      - name: Trigger Portainer redeploy
+        if: github.event_name != 'pull_request' && env.PORTAINER_EXCALIDRAW_WEBHOOK != ''
+        env:
+          PORTAINER_EXCALIDRAW_WEBHOOK: ${{ secrets.PORTAINER_EXCALIDRAW_WEBHOOK }}
+        run: curl -fsSL -X POST "$PORTAINER_EXCALIDRAW_WEBHOOK"
