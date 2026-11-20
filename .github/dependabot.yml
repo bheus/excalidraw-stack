@@ -4,8 +4,7 @@ updates:
   - package-ecosystem: "gitsubmodule"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "sunday"
+      interval: "monthly"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
